@@ -16,6 +16,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { LessonCard } from "@/components/LessonCard";
 import { LessonFormDialog } from "@/components/LessonFormDialog";
+import { WeeklySchedule } from "@/components/WeeklySchedule";
 import { EmptyState, PageHeader, StatCard, StatusPill } from "@/components/PageParts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,6 +122,8 @@ export default function TeacherDashboard() {
               className="stagger-3"
             />
           </div>
+
+          <WeeklySchedule />
 
           <div className="mt-8 grid gap-6 xl:grid-cols-[1.25fr_1fr]">
             <section>
