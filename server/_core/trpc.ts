@@ -1,4 +1,3 @@
-import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
@@ -13,8 +12,8 @@ export const publicProcedure = t.procedure;
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
 
-  if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  if (!ctx.user || !ctx.user.isActive) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "يجب تسجيل الدخول للمتابعة" });
   }
 
   return next({
@@ -27,19 +26,20 @@ const requireUser = t.middleware(async opts => {
 
 export const protectedProcedure = t.procedure.use(requireUser);
 
-export const adminProcedure = t.procedure.use(
-  t.middleware(async opts => {
-    const { ctx, next } = opts;
+const roleProcedure = (role: "admin" | "teacher" | "student") =>
+  t.procedure.use(
+    t.middleware(async opts => {
+      const { ctx, next } = opts;
+      if (!ctx.user || !ctx.user.isActive) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "يجب تسجيل الدخول للمتابعة" });
+      }
+      if (ctx.user.role !== role) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "لا تملك صلاحية لهذا الإجراء" });
+      }
+      return next({ ctx: { ...ctx, user: ctx.user } });
+    })
+  );
 
-    if (!ctx.user || ctx.user.role !== 'admin') {
-      throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
-    }
-
-    return next({
-      ctx: {
-        ...ctx,
-        user: ctx.user,
-      },
-    });
-  }),
-);
+export const adminProcedure = roleProcedure("admin");
+export const teacherProcedure = roleProcedure("teacher");
+export const studentProcedure = roleProcedure("student");

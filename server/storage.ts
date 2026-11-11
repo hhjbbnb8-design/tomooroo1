@@ -2,6 +2,7 @@
 // Uploads via Forge Server presigned URL to S3 (PUT direct).
 // Downloads return /manus-storage/{key} paths served via 307 redirect.
 
+import { createReadStream } from "node:fs";
 import { ENV } from "./_core/env";
 
 function getForgeConfig() {
@@ -68,6 +69,47 @@ export async function storagePut(
     throw new Error(`Storage upload to S3 failed (${uploadResp.status})`);
   }
 
+  return { key, url: `/manus-storage/${key}` };
+}
+
+/** الحصول على رابط رفع مسبق التوقيع ليرفع المتصفح الملف مباشرة إلى التخزين. */
+export async function presignPut(relKey: string): Promise<string> {
+  const { forgeUrl, forgeKey } = getForgeConfig();
+  const key = normalizeKey(relKey);
+  const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
+  presignUrl.searchParams.set("path", key);
+
+  const presignResp = await fetch(presignUrl, {
+    headers: { Authorization: `Bearer ${forgeKey}` },
+  });
+  if (!presignResp.ok) {
+    const msg = await presignResp.text().catch(() => presignResp.statusText);
+    throw new Error(`Storage presign failed (${presignResp.status}): ${msg}`);
+  }
+  const { url } = (await presignResp.json()) as { url: string };
+  if (!url) throw new Error("Forge returned empty presign URL");
+  return url;
+}
+
+/** رفع ملف كبير (تسجيل حصة) من القرص دون تحميله كاملاً في الذاكرة. */
+export async function storagePutFile(
+  relKey: string,
+  filePath: string,
+  contentType = "video/webm",
+): Promise<{ key: string; url: string }> {
+  const key = normalizeKey(relKey);
+  const s3Url = await presignPut(key);
+  const body = createReadStream(filePath);
+  const uploadResp = await fetch(s3Url, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: body as unknown as BodyInit,
+    // Node's fetch requires half-duplex for streamed request bodies.
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+  if (!uploadResp.ok) {
+    throw new Error(`Storage upload to S3 failed (${uploadResp.status})`);
+  }
   return { key, url: `/manus-storage/${key}` };
 }
 
