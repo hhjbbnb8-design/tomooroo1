@@ -266,6 +266,35 @@ export const appRouter = router({
         return { id };
       }),
 
+    createTeacher: adminProcedure
+      .input(
+        z.object({
+          name: z.string().trim().min(2, "Teacher name is too short").max(120),
+          username: usernameSchema,
+          password: passwordSchema,
+          schoolId: z.number().int().positive("Select a school"),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const schools = await listSchools();
+        if (!schools.some(school => school.id === input.schoolId)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "School not found" });
+        }
+        const username = input.username.toLowerCase();
+        if (await getUserByUsername(username)) {
+          throw new TRPCError({ code: "CONFLICT", message: "Username is already in use" });
+        }
+        const id = await createUser({
+          name: input.name,
+          username,
+          passwordHash: await hashPassword(input.password),
+          role: "teacher",
+          schoolId: input.schoolId,
+          isActive: true,
+        });
+        return { id };
+      }),
+
     resetStudentPassword: adminProcedure
       .input(z.object({ studentId: z.number().int().positive(), password: passwordSchema }))
       .mutation(async ({ input }) => {

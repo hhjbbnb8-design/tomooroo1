@@ -49,44 +49,62 @@ type StudentRow = {
   lastSignedIn: Date | null;
 };
 
-function AddStudentForm({ schools }: { schools: { id: number; name: string }[] }) {
+function AddAccountForm({ schools }: { schools: { id: number; name: string }[] }) {
   const utils = trpc.useUtils();
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [schoolId, setSchoolId] = useState<string>("");
+  const [role, setRole] = useState<"student" | "teacher">("student");
   const [showPassword, setShowPassword] = useState(false);
 
   const createStudent = trpc.admin.createStudent.useMutation({
     onSuccess: async () => {
-      toast.success(`Created account for ${name} successfully`);
-      setName("");
-      setUsername("");
-      setPassword("");
-      setSchoolId("");
-      await Promise.all([
-        utils.admin.listStudents.invalidate(),
-        utils.admin.overview.invalidate(),
-      ]);
+      toast.success(`Created student account for ${name} successfully`);
+      await refreshLists();
+    },
+    onError: error => toast.error(error.message),
+  });
+  const createTeacher = trpc.admin.createTeacher.useMutation({
+    onSuccess: async () => {
+      toast.success(`Created teacher account for ${name} successfully`);
+      await refreshLists();
     },
     onError: error => toast.error(error.message),
   });
 
+  const refreshLists = async () => {
+    setName("");
+    setUsername("");
+    setPassword("");
+    setSchoolId("");
+    setRole("student");
+    await Promise.all([
+      utils.admin.listStudents.invalidate(),
+      utils.admin.listTeachers.invalidate(),
+      utils.admin.overview.invalidate(),
+    ]);
+  };
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (name.trim().length < 2) return toast.error("Enter the student’s full name");
+    if (name.trim().length < 2) return toast.error(`Enter the ${role}'s full name`);
     if (!/^[a-zA-Z0-9_.-]{3,32}$/.test(username.trim())) {
       return toast.error("Username: 3–32 English letters or numbers only");
     }
-    if (password.length < 6) return toast.error("Password 6 characters at least least");
-    if (!schoolId) return toast.error("Select the student’s school");
-    createStudent.mutate({
+    if (password.length < 6) return toast.error("Password must be at least 6 characters");
+    if (!schoolId) return toast.error(`Select the ${role}'s school`);
+    const payload = {
       name: name.trim(),
       username: username.trim(),
       password,
       schoolId: Number(schoolId),
-    });
+    };
+    if (role === "teacher") createTeacher.mutate(payload);
+    else createStudent.mutate(payload);
   };
+
+  const pending = createStudent.isPending || createTeacher.isPending;
 
   return (
     <Card className="border-border/80 bg-card shadow-[0_16px_40px_-32px_rgba(21,33,59,0.5)]">
@@ -96,9 +114,9 @@ function AddStudentForm({ schools }: { schools: { id: number; name: string }[] }
             <Plus className="h-4 w-4" />
           </span>
           <div>
-            <CardTitle className="font-display text-base">Add new student</CardTitle>
+            <CardTitle className="font-display text-base">Create an account</CardTitle>
             <CardDescription className="mt-0.5 text-xs">
-              The administrator creates student accounts only
+              The administrator can create student and teacher accounts
             </CardDescription>
           </div>
         </div>
@@ -106,7 +124,7 @@ function AddStudentForm({ schools }: { schools: { id: number; name: string }[] }
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="student-name">Student name</Label>
+            <Label htmlFor="student-name">Full name</Label>
             <Input
               id="student-name"
               value={name}
@@ -114,6 +132,18 @@ function AddStudentForm({ schools }: { schools: { id: number; name: string }[] }
               placeholder="Example: Nora Al Salem"
               className="bg-background/60"
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Account type</Label>
+            <Select value={role} onValueChange={value => setRole(value as "student" | "teacher")}>
+              <SelectTrigger className="w-full bg-background/60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="student">Student</SelectItem>
+                <SelectItem value="teacher">Teacher</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="student-username">Username</Label>
@@ -145,16 +175,16 @@ function AddStudentForm({ schools }: { schools: { id: number; name: string }[] }
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={event => setPassword(event.target.value)}
-              placeholder="6 characters at least least"
+              placeholder="At least 6 characters"
               className="bg-background/60"
               dir="ltr"
             />
           </div>
           <div className="space-y-2">
-            <Label>School</Label>
+              <Label>School</Label>
             <Select value={schoolId} onValueChange={setSchoolId}>
               <SelectTrigger className="w-full bg-background/60">
-                <SelectValue placeholder="Select the student’s school" />
+                <SelectValue placeholder={`Select the ${role}'s school`} />
               </SelectTrigger>
               <SelectContent>
                 {schools.map(school => (
@@ -165,8 +195,8 @@ function AddStudentForm({ schools }: { schools: { id: number; name: string }[] }
               </SelectContent>
             </Select>
           </div>
-          <Button type="submit" className="w-full" disabled={createStudent.isPending}>
-            {createStudent.isPending ? (
+          <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? (
               <>
                 <Loader2 className="ml-2 h-4 w-4 animate-spin" />
                 Creating account...
@@ -174,7 +204,7 @@ function AddStudentForm({ schools }: { schools: { id: number; name: string }[] }
             ) : (
               <>
                 <Plus className="ml-1 h-4 w-4" />
-                Create student account
+                Create {role} account
               </>
             )}
           </Button>
@@ -288,7 +318,7 @@ export default function AdminDashboard() {
       />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <StatCard icon={Users} label="Total students" value={overviewQuery.data?.students ?? "—"} hint="Across both schools" />
+        <StatCard icon={Users} label="Total students" value={overviewQuery.data?.students ?? "—"} hint="Tomorrow School" />
         <StatCard
           icon={ShieldCheck}
           label="Active students"
@@ -315,7 +345,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[380px_1fr]">
-        <AddStudentForm schools={schools} />
+        <AddAccountForm schools={schools} />
 
         <Card className="border-border/80 bg-card">
           <CardHeader className="gap-4 pb-4">
@@ -478,7 +508,7 @@ export default function AdminDashboard() {
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base">Teaching team</CardTitle>
           <CardDescription className="text-xs">
-            Teacher accounts are managed by platform settings; each teacher sees only their own school.
+            Create and manage teacher accounts here; each teacher sees only Tomorrow School classes and students.
           </CardDescription>
         </CardHeader>
         <CardContent>

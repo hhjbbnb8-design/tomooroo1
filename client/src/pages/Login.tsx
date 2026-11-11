@@ -12,7 +12,6 @@ import { homeForRole } from "@/lib/routes";
 import { trpc } from "@/lib/trpc";
 
 const demoAccounts = [
-  { label: "Admin", username: "admin", password: "Admin@1234", icon: LockKeyhole },
   { label: "Tomorrow School teacher", username: "teacher", password: "Teacher@1234", icon: UserRound },
   { label: "Tomorrow School student", username: "student", password: "Student@1234", icon: GraduationCap },
 ];
@@ -246,8 +245,8 @@ export default function Login() {
               ))}
             </div>
             <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-              The administrator creates student accounts only. Teacher accounts and demo passwords are shown above
-              for quick access.
+              Demo access is available for teacher and student accounts. Administrator access is private and is not
+              displayed on this page.
             </p>
           </div>
         </div>
