@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import AdminDashboard from "./pages/AdminDashboard";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import LiveLesson from "./pages/LiveLesson";
 import NotFound from "./pages/NotFound";
 import StudentAssignmentDetail from "./pages/StudentAssignmentDetail";
 import StudentAssignments from "./pages/StudentAssignments";
@@ -35,6 +36,11 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
+      <Route path="/live/:id">
+        <RoleRoute roles={["teacher", "student"]}>
+          <LiveLesson />
+        </RoleRoute>
+      </Route>
 
       <Route path="/admin">
         <RoleRoute roles={["admin"]}>
