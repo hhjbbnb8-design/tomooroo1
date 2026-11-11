@@ -1,0 +1,32 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/${localWorkspaceFolderBasename}:cached
+    environment:
+      DATABASE_URL: mysql://midad:midad@db:3306/midad
+      MANUS_JWT_SECRET: codespaces-development-secret-change-me
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: midad
+      MYSQL_USER: midad
+      MYSQL_PASSWORD: midad
+      MYSQL_ROOT_PASSWORD: root-development-password
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "midad", "-pmidad"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mysql-data:

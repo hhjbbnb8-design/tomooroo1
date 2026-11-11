@@ -1,0 +1,19 @@
+{
+  "name": "Tomorrow School Platform",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Tomorrow School",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "postCreateCommand": "pnpm install && pnpm db:migrate",
+  "customizations": {
+    "vscode": {
+      "extensions": ["bracketpaircolordlw.bracket-pair-color-dlw", "esbenp.prettier-vscode"]
+    }
+  }
+}
